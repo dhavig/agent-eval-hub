@@ -6,7 +6,7 @@ description: |
 
 device:
   backend: mock_android
-  fixture: devices/fixtures/basic_ui.json
+  fixture: fixtures/devices/basic_ui.json
 
 tools:
   - name: launch_app

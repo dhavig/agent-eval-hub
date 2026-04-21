@@ -1,4 +1,5 @@
-from graders.deterministic import (
+from agent_eval_hub.adapters.base import ToolCall
+from agent_eval_hub.graders.deterministic import (
     contains_all,
     did_not_call_tool,
     did_not_contain,
@@ -6,8 +7,7 @@ from graders.deterministic import (
     regex_match,
     tool_called,
 )
-from adapters.base import ToolCall
-from runner.agent_loop import RunTrace
+from agent_eval_hub.runner.agent_loop import RunTrace
 
 
 def make_trace(text: str = "", tool_calls: list[ToolCall] | None = None) -> RunTrace:

@@ -9,7 +9,7 @@ from typing import Any
 
 import duckdb
 
-from runner.scorer import SuiteReport
+from agent_eval_hub.runner.scorer import SuiteReport
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (

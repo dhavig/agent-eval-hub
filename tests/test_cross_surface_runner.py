@@ -8,8 +8,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from adapters import get_adapter as _real_get_adapter
-from adapters.base import Adapter, AgentResponse
+from agent_eval_hub.adapters import get_adapter as _real_get_adapter
+from agent_eval_hub.adapters.base import Adapter, AgentResponse
+
+pytestmark = pytest.mark.integration
 
 
 class _Static(Adapter):
@@ -19,7 +21,7 @@ class _Static(Adapter):
         super().__init__(model)
         self._text = text
 
-    def complete(self, system, messages, tools=None, temperature=0.0):  # noqa: ARG002
+    def complete(self, system, messages, tools=None, temperature=0.0):
         return AgentResponse(text=self._text)
 
 
@@ -42,8 +44,8 @@ def test_cross_surface_returns_zero_when_answers_agree(monkeypatch: pytest.Monke
             return _Static(model=model, text="the weather is sunny and 20 degrees")
         return _real_get_adapter(name, model)
 
-    import runner.run_suite as rs
-    import runner.run_cross_surface as rcs
+    import agent_eval_hub.runner.run_cross_surface as rcs
+    import agent_eval_hub.runner.run_suite as rs
     monkeypatch.setattr(rs, "get_adapter", fake)
     monkeypatch.setattr(sys, "argv", [
         "run_cross_surface",
@@ -64,8 +66,8 @@ def test_cross_surface_returns_one_when_answers_diverge(monkeypatch: pytest.Monk
             return _Static(model=model, text=responses[name])
         return _real_get_adapter(name, model)
 
-    import runner.run_suite as rs
-    import runner.run_cross_surface as rcs
+    import agent_eval_hub.runner.run_cross_surface as rcs
+    import agent_eval_hub.runner.run_suite as rs
     monkeypatch.setattr(rs, "get_adapter", fake)
     monkeypatch.setattr(sys, "argv", [
         "run_cross_surface",
@@ -85,8 +87,8 @@ def test_divergences_recorded_to_db(monkeypatch: pytest.MonkeyPatch, trivial_sui
             return _Static(model=model, text="utterly different")
         return _real_get_adapter(name, model)
 
-    import runner.run_suite as rs
-    import runner.run_cross_surface as rcs
+    import agent_eval_hub.runner.run_cross_surface as rcs
+    import agent_eval_hub.runner.run_suite as rs
     monkeypatch.setattr(rs, "get_adapter", fake)
 
     db = tmp_path / "div.duckdb"
@@ -100,7 +102,7 @@ def test_divergences_recorded_to_db(monkeypatch: pytest.MonkeyPatch, trivial_sui
     ])
     assert rcs.main() == 1
 
-    from storage.duckdb_store import connect, load_divergences
+    from agent_eval_hub.storage.duckdb_store import connect, load_divergences
     con = connect(db)
     rows = load_divergences(con)
     con.close()

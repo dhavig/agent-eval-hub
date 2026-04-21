@@ -13,8 +13,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: pytest -q
+          cache: pip
+      - run: pip install -e .[dev]
+      - name: Fast unit tests
+        run: pytest -m "not integration and not e2e and not device"
+      - name: Integration tests (stub adapters/devices)
+        run: pytest -m integration
 
   eval-claude:
     runs-on: ubuntu-latest
@@ -25,13 +29,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
+          cache: pip
+      - run: pip install -e .
       - env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m runner.run_suite --suite suites/tool_use.yaml --provider claude --model claude-sonnet-4-6
-          python -m runner.run_suite --suite suites/red_team.yaml --provider claude --model claude-sonnet-4-6
-          python -m runner.run_suite --suite suites/rag_qa.yaml --provider claude --model claude-sonnet-4-6 --judge-provider claude --judge-model claude-opus-4-7
+          python -m agent_eval_hub.runner.run_suite --suite suites/tool_use.yaml --provider claude --model claude-sonnet-4-6
+          python -m agent_eval_hub.runner.run_suite --suite suites/red_team.yaml --provider claude --model claude-sonnet-4-6
+          python -m agent_eval_hub.runner.run_suite --suite suites/rag_qa.yaml --provider claude --model claude-sonnet-4-6 --judge-provider claude --judge-model claude-opus-4-7
 
   eval-openai:
     runs-on: ubuntu-latest
@@ -42,16 +47,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
+          cache: pip
+      - run: pip install -e .
       - env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m runner.run_suite --suite suites/tool_use.yaml --provider openai --model gpt-4o-mini
-          python -m runner.run_suite --suite suites/red_team.yaml --provider openai --model gpt-4o-mini
+          python -m agent_eval_hub.runner.run_suite --suite suites/tool_use.yaml --provider openai --model gpt-4o-mini
+          python -m agent_eval_hub.runner.run_suite --suite suites/red_team.yaml --provider openai --model gpt-4o-mini
           # RAG suite uses Claude Opus as judge (stronger than the model under test).
           if [ -n "$ANTHROPIC_API_KEY" ]; then
-            python -m runner.run_suite --suite suites/rag_qa.yaml --provider openai --model gpt-4o-mini --judge-provider claude --judge-model claude-opus-4-7
+            python -m agent_eval_hub.runner.run_suite --suite suites/rag_qa.yaml --provider openai --model gpt-4o-mini --judge-provider claude --judge-model claude-opus-4-7
           fi
 
   eval-gemini:
@@ -63,13 +69,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
+          cache: pip
+      - run: pip install -e .
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m runner.run_suite --suite suites/tool_use.yaml --provider gemini --model gemini-2.5-pro
-          python -m runner.run_suite --suite suites/red_team.yaml --provider gemini --model gemini-2.5-pro
+          python -m agent_eval_hub.runner.run_suite --suite suites/tool_use.yaml --provider gemini --model gemini-2.5-pro
+          python -m agent_eval_hub.runner.run_suite --suite suites/red_team.yaml --provider gemini --model gemini-2.5-pro
           if [ -n "$ANTHROPIC_API_KEY" ]; then
-            python -m runner.run_suite --suite suites/rag_qa.yaml --provider gemini --model gemini-2.5-pro --judge-provider claude --judge-model claude-opus-4-7
+            python -m agent_eval_hub.runner.run_suite --suite suites/rag_qa.yaml --provider gemini --model gemini-2.5-pro --judge-provider claude --judge-model claude-opus-4-7
           fi

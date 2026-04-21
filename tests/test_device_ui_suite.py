@@ -9,8 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from adapters import get_adapter as _real_get_adapter
-from adapters.base import Adapter, AgentResponse, ToolCall
+from agent_eval_hub.adapters import get_adapter as _real_get_adapter
+from agent_eval_hub.adapters.base import Adapter, AgentResponse, ToolCall
+
+pytestmark = pytest.mark.integration
 
 
 class ScriptedAdapter(Adapter):
@@ -24,7 +26,7 @@ class ScriptedAdapter(Adapter):
         super().__init__(model)
         self._responses = list(responses)
 
-    def complete(self, system, messages, tools=None, temperature=0.0):  # noqa: ARG002
+    def complete(self, system, messages, tools=None, temperature=0.0):
         if not self._responses:
             return AgentResponse(text="(no more scripted responses)")
         return self._responses.pop(0)
@@ -37,7 +39,7 @@ def _patch_adapter(monkeypatch: pytest.MonkeyPatch, mapping: dict[str, list[Agen
             return ScriptedAdapter(model=model, responses=mapping[name])
         return _real_get_adapter(name, model)
 
-    import runner.run_suite as rs
+    import agent_eval_hub.runner.run_suite as rs
     monkeypatch.setattr(rs, "get_adapter", fake)
 
 
@@ -60,7 +62,7 @@ def test_device_ui_suite_end_to_end(monkeypatch: pytest.MonkeyPatch):
     ]
     _patch_adapter(monkeypatch, {"scripted": responses})
 
-    from runner.run_suite import run_suite
+    from agent_eval_hub.runner.run_suite import run_suite
     suite_path = Path(__file__).resolve().parent.parent / "suites" / "device_ui.yaml"
     report = run_suite(suite_path, provider="scripted", model="stub")
 
@@ -90,13 +92,14 @@ def test_device_reset_between_tasks(monkeypatch: pytest.MonkeyPatch):
     ]
     _patch_adapter(monkeypatch, {"scripted": responses})
 
-    from runner.run_suite import run_suite
     import yaml
+
+    from agent_eval_hub.runner.run_suite import run_suite
     suite_dict = {
         "name": "device_reset_check",
         "device": {
             "backend": "mock_android",
-            "fixture": str(Path(__file__).resolve().parent.parent / "devices" / "fixtures" / "basic_ui.json"),
+            "fixture": str(Path(__file__).resolve().parent.parent / "fixtures" / "devices" / "basic_ui.json"),
         },
         "tools": [
             {"name": "launch_app", "description": "", "input_schema": {"type": "object", "properties": {"package": {"type": "string"}}, "required": ["package"]}},

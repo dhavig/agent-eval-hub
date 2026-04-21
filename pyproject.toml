@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-eval-hub"
+version = "0.2.0"
+description = "Multi-provider + cross-device reliability harness for AI agents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AgentEvalHub contributors" }]
+dependencies = [
+  "anthropic>=0.40.0",
+  "openai>=1.50.0",
+  "google-genai>=0.3.0",
+  "httpx>=0.27.0",
+  "pyyaml>=6.0",
+  "duckdb>=1.0.0",
+  "streamlit>=1.35.0",
+  "pandas>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-rerunfailures>=14.0",
+  "ruff>=0.5.0",
+  "mypy>=1.10",
+  "pre-commit>=3.7",
+  "detect-secrets>=1.5",
+]
+appium = [
+  "Appium-Python-Client>=4.0",
+]
+
+[project.scripts]
+agent-eval        = "agent_eval_hub.runner.run_suite:main"
+agent-eval-cross  = "agent_eval_hub.runner.run_cross_surface:main"
+agent-eval-seed   = "agent_eval_hub.dashboard.seed_demo:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# No bundled data — fixtures/suites live at repo root, outside the installable package.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "unit: fast, no network or subprocess (default)",
+  "integration: runs a suite end-to-end against stub adapters/devices",
+  "e2e: hits real LLM providers (requires API keys) — not run in default CI",
+  "device: requires a real device backend (adb, appium) — not run in default CI",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "PL", "RUF"]
+ignore = [
+  "PLR0913",  # too many args — acceptable in adapters/runners
+  "PLR2004",  # magic number — fine in tests and threshold defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR0915", "PLR0912", "B011"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+# Not `strict = true` yet — deliberate roadmap entry (item #14 in review).

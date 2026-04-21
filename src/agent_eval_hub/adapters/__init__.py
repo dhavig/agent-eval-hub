@@ -1,6 +1,6 @@
 from .base import Adapter, AgentResponse, Tool, ToolCall
 
-__all__ = ["Adapter", "AgentResponse", "Tool", "ToolCall", "get_adapter", "KNOWN_PROVIDERS"]
+__all__ = ["KNOWN_PROVIDERS", "Adapter", "AgentResponse", "Tool", "ToolCall", "get_adapter"]
 
 KNOWN_PROVIDERS = ("claude", "openai", "gemini", "ollama")
 

@@ -7,12 +7,12 @@ its own backend, not the harness.
 from .base import DeviceAction, DeviceAdapter, DeviceResult, DeviceUnavailable
 
 __all__ = [
+    "KNOWN_DEVICES",
     "DeviceAction",
     "DeviceAdapter",
     "DeviceResult",
     "DeviceUnavailable",
     "get_device",
-    "KNOWN_DEVICES",
 ]
 
 KNOWN_DEVICES = ("mock_android", "adb_android", "appium_android")

@@ -1,23 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import yaml
 
-# Make repo root importable when run as a script.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from adapters import KNOWN_PROVIDERS, get_adapter  # noqa: E402
-from adapters.base import Adapter, Tool, ToolCall  # noqa: E402
-from devices import get_device  # noqa: E402
-from devices.base import DeviceAdapter  # noqa: E402
-from graders import deterministic as det  # noqa: E402
-from graders.llm_judge import llm_judge  # noqa: E402
-from runner.agent_loop import RunTrace, run_agent  # noqa: E402
-from runner.scorer import SuiteReport, TaskScore  # noqa: E402
+from agent_eval_hub.adapters import KNOWN_PROVIDERS, get_adapter
+from agent_eval_hub.adapters.base import Adapter, Tool, ToolCall
+from agent_eval_hub.devices import get_device
+from agent_eval_hub.devices.base import DeviceAdapter
+from agent_eval_hub.graders import consistency as cons
+from agent_eval_hub.graders import deterministic as det
+from agent_eval_hub.graders import device as dev
+from agent_eval_hub.graders.llm_judge import llm_judge
+from agent_eval_hub.runner.agent_loop import RunTrace, run_agent
+from agent_eval_hub.runner.scorer import SuiteReport, TaskScore
 
 
 def build_graders(judge: Adapter | None) -> dict[str, Callable[[RunTrace, dict, str], Any]]:
@@ -45,14 +44,17 @@ def build_graders(judge: Adapter | None) -> dict[str, Callable[[RunTrace, dict, 
         "did_not_call_tool": _wrap_det(
             lambda t, c: det.did_not_call_tool(t, c["tool_name"], c.get("forbidden_args"))
         ),
-        "device_state": _wrap_det(lambda t, c: det.device_state(t, c["key"], c.get("equals"))),
+        "device_state": _wrap_det(lambda t, c: dev.device_state(t, c["key"], c.get("equals"))),
+        "answer_similar_to": _wrap_det(
+            lambda t, c: cons.answer_similar_to(t, c["reference"], c.get("threshold", 0.5))
+        ),
         "llm_judge": _llm_judge,
     }
 
 
 def build_tool_handlers(tool_results: dict[str, str]) -> dict[str, Any]:
     def make(_name: str, result: str):
-        def handler(call: ToolCall) -> str:  # noqa: ARG001
+        def handler(call: ToolCall) -> str:
             return result
         return handler
     return {name: make(name, result) for name, result in tool_results.items()}
@@ -153,7 +155,7 @@ def main() -> int:
     report.print_summary()
 
     if args.db:
-        from storage.duckdb_store import connect, find_regressions, record_run
+        from agent_eval_hub.storage.duckdb_store import connect, find_regressions, record_run
         con = connect(args.db)
         run_id = record_run(con, report, git_sha=args.git_sha)
         print(f"\nrecorded run_id={run_id} to {args.db}")

@@ -1,25 +1,21 @@
 """Seed a DuckDB file with synthetic run history so the dashboard has something to show.
 
 Usage:
-    python -m dashboard.seed_demo --db demo.duckdb
-    streamlit run dashboard/app.py -- --db demo.duckdb
+    python -m agent_eval_hub.dashboard.seed_demo --db demo.duckdb
+    streamlit run src/agent_eval_hub/dashboard/app.py -- --db demo.duckdb
 """
 from __future__ import annotations
 
 import argparse
 import random
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from adapters.base import ToolCall  # noqa: E402
-from graders.deterministic import GradeResult  # noqa: E402
-from runner.agent_loop import RunTrace  # noqa: E402
-from runner.scorer import SuiteReport, TaskScore  # noqa: E402
-from storage.duckdb_store import connect, record_run  # noqa: E402
-
+from agent_eval_hub.adapters.base import ToolCall
+from agent_eval_hub.graders.deterministic import GradeResult
+from agent_eval_hub.runner.agent_loop import RunTrace
+from agent_eval_hub.runner.scorer import SuiteReport, TaskScore
+from agent_eval_hub.storage.duckdb_store import connect, record_run
 
 SUITES = {
     "tool_use": ["weather_paris", "order_lookup", "refusal_no_tool"],

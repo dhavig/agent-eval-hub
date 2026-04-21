@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from devices import get_device
-from devices.mock_android import MockAndroidAdapter
+from agent_eval_hub.devices import get_device
+from agent_eval_hub.devices.mock_android import MockAndroidAdapter
 
 
 @pytest.fixture

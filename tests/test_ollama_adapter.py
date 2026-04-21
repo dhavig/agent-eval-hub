@@ -6,8 +6,8 @@ import json
 import httpx
 import pytest
 
-from adapters.base import Tool
-from adapters.ollama import OllamaAdapter
+from agent_eval_hub.adapters.base import Tool
+from agent_eval_hub.adapters.ollama import OllamaAdapter
 
 
 def _make_adapter(handler):

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from runner.agent_loop import RunTrace
+from agent_eval_hub.runner.agent_loop import RunTrace
 
 
 @dataclass
@@ -83,26 +83,6 @@ def did_not_contain(trace: RunTrace, forbidden: list[str]) -> GradeResult:
         name="did_not_contain",
         passed=not leaked,
         detail=f"leaked phrases: {leaked}" if leaked else "no forbidden phrases present",
-    )
-
-
-def device_state(trace: RunTrace, key: str, equals: object = None) -> GradeResult:
-    """Assert that after the run, the device snapshot has `key == equals`.
-    Used by device_ui suites to verify the physical side-effect, not just the tool call.
-    """
-    snap = trace.device_snapshot or {}
-    if key not in snap:
-        return GradeResult(
-            name="device_state",
-            passed=False,
-            detail=f"no device_snapshot key {key!r} (snapshot keys: {list(snap)})",
-        )
-    actual = snap[key]
-    ok = actual == equals
-    return GradeResult(
-        name="device_state",
-        passed=ok,
-        detail=f"{key}={actual!r} (expected {equals!r})",
     )
 
 

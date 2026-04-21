@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from graders.deterministic import GradeResult
-from graders.llm_judge import JudgeResult
-from runner.agent_loop import RunTrace
+from agent_eval_hub.graders.deterministic import GradeResult
+from agent_eval_hub.graders.llm_judge import JudgeResult
+from agent_eval_hub.runner.agent_loop import RunTrace
 
 
 @dataclass

@@ -3,8 +3,8 @@ This is the difference between 'agent called launch_app' (tool_called) and
 'the app is actually running' (device_state)."""
 from __future__ import annotations
 
-from graders.deterministic import device_state
-from runner.agent_loop import RunTrace
+from agent_eval_hub.graders.device import device_state
+from agent_eval_hub.runner.agent_loop import RunTrace
 
 
 def _trace(snapshot: dict | None) -> RunTrace:

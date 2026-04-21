@@ -4,8 +4,8 @@ import json
 import re
 from dataclasses import dataclass
 
-from adapters.base import Adapter
-from runner.agent_loop import RunTrace
+from agent_eval_hub.adapters.base import Adapter
+from agent_eval_hub.runner.agent_loop import RunTrace
 
 JUDGE_SYSTEM = """You are a strict evaluator. Given a task, an agent's answer, and a rubric,
 return ONLY a JSON object like {"score": 0-5, "passed": true|false, "reason": "..."}.

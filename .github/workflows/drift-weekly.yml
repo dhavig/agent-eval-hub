@@ -24,8 +24,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
-      - run: pip install -r requirements.txt
+      - run: pip install -e .
 
       # Restore the historical run DB so we can compare against previous runs.
       - name: Restore run history
@@ -42,7 +43,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python -m runner.run_suite \
+          python -m agent_eval_hub.runner.run_suite \
             --suite suites/${{ matrix.suite }}.yaml \
             --provider ${{ matrix.provider.name }} \
             --model ${{ matrix.provider.model }} \

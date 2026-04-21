@@ -1,20 +1,17 @@
 """Streamlit drift dashboard.
 
 Run with:
-    streamlit run dashboard/app.py -- --db runs.duckdb
+    streamlit run src/agent_eval_hub/dashboard/app.py -- --db runs.duckdb
 """
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from storage.duckdb_store import connect, find_regressions, load_divergences  # noqa: E402
+from agent_eval_hub.storage.duckdb_store import connect, find_regressions, load_divergences
 
 
 def parse_args() -> argparse.Namespace:

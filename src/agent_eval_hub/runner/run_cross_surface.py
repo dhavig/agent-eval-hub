@@ -11,13 +11,10 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from graders.consistency import cross_surface_consistency  # noqa: E402
-from runner.run_suite import run_suite  # noqa: E402
+from agent_eval_hub.graders.consistency import cross_surface_consistency
+from agent_eval_hub.runner.run_suite import run_suite
 
 
 def parse_surface(spec: str) -> tuple[str, str]:
@@ -70,7 +67,7 @@ def main() -> int:
     print(f"\n  divergent: {len(divergences)}/{len(common)} (threshold={args.threshold})")
 
     if args.db and divergences:
-        from storage.duckdb_store import connect, record_divergences
+        from agent_eval_hub.storage.duckdb_store import connect, record_divergences
         con = connect(args.db)
         record_divergences(con, suite=report_a.suite, divergences=divergences)
         con.close()

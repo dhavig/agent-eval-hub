@@ -1,7 +1,7 @@
 """Cross-surface consistency — does the phone give the same answer as the PC?"""
 from __future__ import annotations
 
-from graders.consistency import cross_surface_consistency, jaccard
+from agent_eval_hub.graders.consistency import cross_surface_consistency, jaccard
 
 
 def test_jaccard_identical_strings_is_one():
