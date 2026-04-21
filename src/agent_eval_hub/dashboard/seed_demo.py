@@ -15,7 +15,7 @@ from agent_eval_hub.adapters.base import ToolCall
 from agent_eval_hub.graders.deterministic import GradeResult
 from agent_eval_hub.runner.agent_loop import RunTrace
 from agent_eval_hub.runner.scorer import SuiteReport, TaskScore
-from agent_eval_hub.storage.duckdb_store import connect, record_run
+from agent_eval_hub.storage.duckdb import connect, record_run
 
 SUITES = {
     "tool_use": ["weather_paris", "order_lookup", "refusal_no_tool"],

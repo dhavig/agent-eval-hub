@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-eval-hub"
-version = "0.2.0"
+version = "0.3.0"
 description = "Multi-provider + cross-device reliability harness for AI agents."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -33,11 +33,17 @@ dev = [
 appium = [
   "Appium-Python-Client>=4.0",
 ]
+postgres = [
+  "psycopg[binary]>=3.1",
+]
 
 [project.scripts]
-agent-eval        = "agent_eval_hub.runner.run_suite:main"
-agent-eval-cross  = "agent_eval_hub.runner.run_cross_surface:main"
-agent-eval-seed   = "agent_eval_hub.dashboard.seed_demo:main"
+agent-eval               = "agent_eval_hub.runner.run_suite:main"
+agent-eval-cross         = "agent_eval_hub.runner.run_cross_surface:main"
+agent-eval-ab            = "agent_eval_hub.runner.run_ab:main"
+agent-eval-safety-parity = "agent_eval_hub.runner.run_safety_parity:main"
+agent-eval-review        = "agent_eval_hub.runner.review_queue:main"
+agent-eval-seed          = "agent_eval_hub.dashboard.seed_demo:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

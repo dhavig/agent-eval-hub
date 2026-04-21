@@ -2,7 +2,7 @@ from .base import Adapter, AgentResponse, Tool, ToolCall
 
 __all__ = ["KNOWN_PROVIDERS", "Adapter", "AgentResponse", "Tool", "ToolCall", "get_adapter"]
 
-KNOWN_PROVIDERS = ("claude", "openai", "gemini", "ollama")
+KNOWN_PROVIDERS = ("claude", "openai", "gemini", "ollama", "device")
 
 
 def get_adapter(name: str, model: str) -> Adapter:
@@ -19,4 +19,7 @@ def get_adapter(name: str, model: str) -> Adapter:
     if name == "ollama":
         from .ollama import OllamaAdapter
         return OllamaAdapter(model=model)
+    if name == "device":
+        from .device_ollama import DeviceOllamaAdapter
+        return DeviceOllamaAdapter(model=model)
     raise ValueError(f"Unknown provider: {name}. Known: {', '.join(KNOWN_PROVIDERS)}")

@@ -14,9 +14,14 @@ from agent_eval_hub.devices.base import DeviceAdapter
 from agent_eval_hub.graders import consistency as cons
 from agent_eval_hub.graders import deterministic as det
 from agent_eval_hub.graders import device as dev
+from agent_eval_hub.graders import latency as lat
+from agent_eval_hub.graders.human_review import llm_judge_with_human_fallback
 from agent_eval_hub.graders.llm_judge import llm_judge
+from agent_eval_hub.logging import get_logger
 from agent_eval_hub.runner.agent_loop import RunTrace, run_agent
 from agent_eval_hub.runner.scorer import SuiteReport, TaskScore
+
+log = get_logger(__name__)
 
 
 def build_graders(judge: Adapter | None) -> dict[str, Callable[[RunTrace, dict, str], Any]]:
@@ -34,6 +39,18 @@ def build_graders(judge: Adapter | None) -> dict[str, Callable[[RunTrace, dict, 
             )
         return llm_judge(judge=judge, trace=trace, task_prompt=task_prompt, rubric=cfg["rubric"])
 
+    def _llm_judge_with_human(trace: RunTrace, cfg: dict, task_prompt: str):
+        if judge is None:
+            raise RuntimeError("llm_judge_with_human used but no judge provided.")
+        return llm_judge_with_human_fallback(
+            judge=judge,
+            trace=trace,
+            task_prompt=task_prompt,
+            rubric=cfg["rubric"],
+            uncertain_if_score_in=tuple(cfg.get("uncertain_range", (2, 3))),
+            queue_path=cfg.get("queue_path", "review_queue.jsonl"),
+        )
+
     return {
         "contains_all": _wrap_det(lambda t, c: det.contains_all(t, c["phrases"])),
         "regex_match": _wrap_det(lambda t, c: det.regex_match(t, c["pattern"])),
@@ -48,7 +65,10 @@ def build_graders(judge: Adapter | None) -> dict[str, Callable[[RunTrace, dict, 
         "answer_similar_to": _wrap_det(
             lambda t, c: cons.answer_similar_to(t, c["reference"], c.get("threshold", 0.5))
         ),
+        "latency_under": _wrap_det(lambda t, c: lat.latency_under(t, c["seconds"])),
+        "token_budget": _wrap_det(lambda t, c: lat.token_budget(t, c["max_output_tokens"])),
         "llm_judge": _llm_judge,
+        "llm_judge_with_human": _llm_judge_with_human,
     }
 
 
@@ -61,8 +81,7 @@ def build_tool_handlers(tool_results: dict[str, str]) -> dict[str, Any]:
 
 
 def build_device_tool_handlers(device: DeviceAdapter, tool_names: list[str]) -> dict[str, Any]:
-    """Each declared tool routes through the device's execute() method. The
-    agent loop calls handler(ToolCall) -> str, so we translate + stringify."""
+    """Each declared tool routes through the device's execute() method."""
     def make(name: str):
         def handler(call: ToolCall) -> str:
             result = device.execute(name, call.arguments or {})
@@ -93,6 +112,7 @@ def run_suite(
     adapter = get_adapter(provider, model)
     tools = [Tool(**t) for t in suite.get("tools", [])]
     graders = build_graders(judge)
+    suite_version = suite.get("version")
 
     device: DeviceAdapter | None = None
     if "device" in suite:
@@ -133,7 +153,7 @@ def run_suite(
         if device is not None:
             device.close()
 
-    return SuiteReport(suite=suite["name"], scores=scores)
+    return SuiteReport(suite=suite["name"], scores=scores, suite_version=suite_version)
 
 
 def main() -> int:
@@ -143,7 +163,11 @@ def main() -> int:
     parser.add_argument("--model", required=True)
     parser.add_argument("--judge-provider", choices=list(KNOWN_PROVIDERS), default=None)
     parser.add_argument("--judge-model", default=None)
-    parser.add_argument("--db", type=Path, help="Optional DuckDB path to persist the run")
+    parser.add_argument(
+        "--db",
+        type=str,
+        help="DuckDB path OR postgres://... URL. Optional, persistence + drift detection are gated on this.",
+    )
     parser.add_argument("--git-sha", type=str, default=None)
     args = parser.parse_args()
 
@@ -155,16 +179,25 @@ def main() -> int:
     report.print_summary()
 
     if args.db:
-        from agent_eval_hub.storage.duckdb_store import connect, find_regressions, record_run
-        con = connect(args.db)
-        run_id = record_run(con, report, git_sha=args.git_sha)
-        print(f"\nrecorded run_id={run_id} to {args.db}")
-        regressions = find_regressions(con, report.suite, args.provider)
+        from agent_eval_hub.storage import get_store
+        store = get_store(args.db)
+        run_id = store.record_run(report, git_sha=args.git_sha, suite_version=report.suite_version)
+        log.info("recorded run_id=%s to %s", run_id, args.db)
+
+        regressions = store.find_regressions(report.suite, args.provider)
         if regressions:
-            print(f"DRIFT DETECTED in {report.suite} ({args.provider}):")
+            log.warning("DRIFT DETECTED in %s (%s):", report.suite, args.provider)
             for r in regressions:
-                print(f"  - {r['task_id']}: PASS -> FAIL")
-        con.close()
+                log.warning("  - %s: PASS -> FAIL", r["task_id"])
+
+        token_regressions = store.find_token_regressions(report.suite, args.provider)
+        if token_regressions:
+            log.warning("TOKEN BLOAT DETECTED (still passing, using more tokens):")
+            for r in token_regressions:
+                log.warning("  - %s: %d -> %d tokens (%.1fx)",
+                            r["task_id"], r["prev_tokens"], r["curr_tokens"], r["ratio"])
+
+        store.close()
         if regressions:
             return 2
 

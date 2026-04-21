@@ -63,7 +63,7 @@ def test_device_ui_suite_end_to_end(monkeypatch: pytest.MonkeyPatch):
     _patch_adapter(monkeypatch, {"scripted": responses})
 
     from agent_eval_hub.runner.run_suite import run_suite
-    suite_path = Path(__file__).resolve().parent.parent / "suites" / "device_ui.yaml"
+    suite_path = Path(__file__).resolve().parent.parent / "suites" / "device" / "device_ui.yaml"
     report = run_suite(suite_path, provider="scripted", model="stub")
 
     by_id = {s.task_id: s for s in report.scores}

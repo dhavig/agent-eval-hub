@@ -1,0 +1,57 @@
+name: nightly-e2e
+
+# Runs the e2e marker tier against real providers every night. Separate from
+# the PR pipeline so fast CI stays fast. Gated on the relevant API key being set.
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 06:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  e2e-provider-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider:
+          - {name: claude, model: claude-sonnet-4-6, key: ANTHROPIC_API_KEY}
+          - {name: openai, model: gpt-4o-mini,       key: OPENAI_API_KEY}
+          - {name: gemini, model: gemini-2.5-pro,    key: GEMINI_API_KEY}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e .[dev]
+
+      - name: Skip if no API key
+        id: gate
+        run: |
+          if [ -z "${{ secrets[matrix.provider.key] }}" ]; then
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run e2e tier
+        if: steps.gate.outputs.has_key == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AGENT_EVAL_LOG: INFO
+        run: pytest -m e2e --provider ${{ matrix.provider.name }} --model ${{ matrix.provider.model }} || true
+        # `|| true` for now — the e2e marker is a forward-looking tier; tests
+        # using it will be added as real-provider assertions land.
+
+      - name: Cross-surface consistency (cloud vs. local)
+        if: steps.gate.outputs.has_key == 'true' && matrix.provider.name == 'claude'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Requires a self-hosted Ollama for the "device" surface. Noop here —
+          # the job runs against a hosted runner without Ollama. Kept for
+          # documentation / future self-hosted setup.
+          echo "Cross-surface run requires self-hosted Ollama; skipped on GitHub runners."

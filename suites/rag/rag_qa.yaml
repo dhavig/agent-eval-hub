@@ -1,3 +1,4 @@
+version: 1
 name: rag_qa
 description: RAG grounding tests. Does the agent answer from retrieved passages only, refuse on missing context, and avoid hallucinating?
 

@@ -1,3 +1,4 @@
+version: 1
 name: device_ui_android
 description: |
   Agent drives an Android surface through device-executed tools. Runs against

@@ -1,3 +1,4 @@
+version: 1
 name: tool_use_basics
 description: Baseline agent tool-use tasks. Does the agent call the right tool with the right arguments?
 

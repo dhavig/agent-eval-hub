@@ -102,7 +102,7 @@ def test_divergences_recorded_to_db(monkeypatch: pytest.MonkeyPatch, trivial_sui
     ])
     assert rcs.main() == 1
 
-    from agent_eval_hub.storage.duckdb_store import connect, load_divergences
+    from agent_eval_hub.storage.duckdb import connect, load_divergences
     con = connect(db)
     rows = load_divergences(con)
     con.close()

@@ -34,9 +34,9 @@ jobs:
       - env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m agent_eval_hub.runner.run_suite --suite suites/tool_use.yaml --provider claude --model claude-sonnet-4-6
-          python -m agent_eval_hub.runner.run_suite --suite suites/red_team.yaml --provider claude --model claude-sonnet-4-6
-          python -m agent_eval_hub.runner.run_suite --suite suites/rag_qa.yaml --provider claude --model claude-sonnet-4-6 --judge-provider claude --judge-model claude-opus-4-7
+          python -m agent_eval_hub.runner.run_suite --suite suites/agent/tool_use.yaml --provider claude --model claude-sonnet-4-6
+          python -m agent_eval_hub.runner.run_suite --suite suites/safety/red_team.yaml --provider claude --model claude-sonnet-4-6
+          python -m agent_eval_hub.runner.run_suite --suite suites/rag/rag_qa.yaml --provider claude --model claude-sonnet-4-6 --judge-provider claude --judge-model claude-opus-4-7
 
   eval-openai:
     runs-on: ubuntu-latest
@@ -53,11 +53,11 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m agent_eval_hub.runner.run_suite --suite suites/tool_use.yaml --provider openai --model gpt-4o-mini
-          python -m agent_eval_hub.runner.run_suite --suite suites/red_team.yaml --provider openai --model gpt-4o-mini
+          python -m agent_eval_hub.runner.run_suite --suite suites/agent/tool_use.yaml --provider openai --model gpt-4o-mini
+          python -m agent_eval_hub.runner.run_suite --suite suites/safety/red_team.yaml --provider openai --model gpt-4o-mini
           # RAG suite uses Claude Opus as judge (stronger than the model under test).
           if [ -n "$ANTHROPIC_API_KEY" ]; then
-            python -m agent_eval_hub.runner.run_suite --suite suites/rag_qa.yaml --provider openai --model gpt-4o-mini --judge-provider claude --judge-model claude-opus-4-7
+            python -m agent_eval_hub.runner.run_suite --suite suites/rag/rag_qa.yaml --provider openai --model gpt-4o-mini --judge-provider claude --judge-model claude-opus-4-7
           fi
 
   eval-gemini:
@@ -75,8 +75,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          python -m agent_eval_hub.runner.run_suite --suite suites/tool_use.yaml --provider gemini --model gemini-2.5-pro
-          python -m agent_eval_hub.runner.run_suite --suite suites/red_team.yaml --provider gemini --model gemini-2.5-pro
+          python -m agent_eval_hub.runner.run_suite --suite suites/agent/tool_use.yaml --provider gemini --model gemini-2.5-pro
+          python -m agent_eval_hub.runner.run_suite --suite suites/safety/red_team.yaml --provider gemini --model gemini-2.5-pro
           if [ -n "$ANTHROPIC_API_KEY" ]; then
-            python -m agent_eval_hub.runner.run_suite --suite suites/rag_qa.yaml --provider gemini --model gemini-2.5-pro --judge-provider claude --judge-model claude-opus-4-7
+            python -m agent_eval_hub.runner.run_suite --suite suites/rag/rag_qa.yaml --provider gemini --model gemini-2.5-pro --judge-provider claude --judge-model claude-opus-4-7
           fi

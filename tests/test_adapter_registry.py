@@ -9,8 +9,8 @@ import pytest
 from agent_eval_hub.adapters import KNOWN_PROVIDERS, get_adapter
 
 
-def test_known_providers_lists_all_four():
-    assert set(KNOWN_PROVIDERS) == {"claude", "openai", "gemini", "ollama"}
+def test_known_providers_includes_cloud_local_and_device():
+    assert set(KNOWN_PROVIDERS) == {"claude", "openai", "gemini", "ollama", "device"}
 
 
 def test_unknown_provider_raises():

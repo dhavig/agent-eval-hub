@@ -67,7 +67,7 @@ def main() -> int:
     print(f"\n  divergent: {len(divergences)}/{len(common)} (threshold={args.threshold})")
 
     if args.db and divergences:
-        from agent_eval_hub.storage.duckdb_store import connect, record_divergences
+        from agent_eval_hub.storage.duckdb import connect, record_divergences
         con = connect(args.db)
         record_divergences(con, suite=report_a.suite, divergences=divergences)
         con.close()

@@ -11,7 +11,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from agent_eval_hub.storage.duckdb_store import connect, find_regressions, load_divergences
+from agent_eval_hub.storage.duckdb import connect, find_regressions, load_divergences
 
 
 def parse_args() -> argparse.Namespace:
