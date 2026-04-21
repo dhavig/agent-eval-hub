@@ -1,0 +1,33 @@
+{
+  "initial_state": {
+    "current_app": null,
+    "installed": [
+      "com.example.weather",
+      "com.example.calendar",
+      "com.example.notes"
+    ]
+  },
+  "actions": {
+    "launch_app": {
+      "output": "Launched <args.package>",
+      "state": {"current_app": "<args.package>"}
+    },
+    "stop_app": {
+      "output": "Stopped <args.package>",
+      "state": {"current_app": null}
+    },
+    "get_current_app": {
+      "output": "current app: <args.package>"
+    },
+    "get_screen_text": {
+      "output": "Weather in Paris\n15C, light rain\nTomorrow: 14C"
+    },
+    "list_packages": {
+      "output": "com.example.weather\ncom.example.calendar\ncom.example.notes"
+    },
+    "send_intent": {
+      "output": "Broadcast sent: <args.action>",
+      "state": {"last_intent": "<args.action>"}
+    }
+  }
+}

@@ -19,6 +19,7 @@ class RunTrace:
     output_tokens: int = 0
     latency_s: float = 0.0
     error: str | None = None
+    device_snapshot: dict | None = None
 
 
 ToolHandler = Callable[[ToolCall], str]

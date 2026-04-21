@@ -36,6 +36,17 @@ CREATE TABLE IF NOT EXISTS task_results (
     grades_json   VARCHAR,
     PRIMARY KEY (run_id, task_id)
 );
+
+CREATE TABLE IF NOT EXISTS divergences (
+    ts          TIMESTAMP NOT NULL,
+    suite       VARCHAR   NOT NULL,
+    task_id     VARCHAR   NOT NULL,
+    surface_a   VARCHAR   NOT NULL,
+    surface_b   VARCHAR   NOT NULL,
+    similarity  DOUBLE    NOT NULL,
+    answer_a    VARCHAR,
+    answer_b    VARCHAR
+);
 """
 
 
@@ -109,6 +120,44 @@ def load_run_history(
         query += " AND provider = ?"
         args.append(provider)
     query += " ORDER BY ts ASC"
+    return [dict(zip([c[0] for c in con.description], row)) for row in con.execute(query, args).fetchall()]
+
+
+def record_divergences(
+    con: duckdb.DuckDBPyConnection,
+    suite: str,
+    divergences: list[dict[str, Any]],
+) -> int:
+    ts = datetime.now(timezone.utc)
+    for d in divergences:
+        con.execute(
+            "INSERT INTO divergences VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                ts,
+                suite,
+                d["task_id"],
+                d["surface_a"],
+                d["surface_b"],
+                float(d["similarity"]),
+                d.get("answer_a", ""),
+                d.get("answer_b", ""),
+            ],
+        )
+    return len(divergences)
+
+
+def load_divergences(
+    con: duckdb.DuckDBPyConnection,
+    suite: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    query = "SELECT ts, suite, task_id, surface_a, surface_b, similarity, answer_a, answer_b FROM divergences WHERE 1=1"
+    args: list[Any] = []
+    if suite:
+        query += " AND suite = ?"
+        args.append(suite)
+    query += " ORDER BY ts DESC LIMIT ?"
+    args.append(limit)
     return [dict(zip([c[0] for c in con.description], row)) for row in con.execute(query, args).fetchall()]
 
 

@@ -14,7 +14,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from storage.duckdb_store import connect, find_regressions  # noqa: E402
+from storage.duckdb_store import connect, find_regressions, load_divergences  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -69,6 +69,16 @@ def main() -> None:
 
     st.subheader("Recent runs")
     st.dataframe(filtered.sort_values("ts", ascending=False).head(20))
+
+    st.subheader("Cross-surface divergences")
+    st.caption("Tasks where two surfaces (e.g. cloud vs. device) gave disagreeing answers. "
+               "Populated by `python -m runner.run_cross_surface --db <db>`.")
+    divergences = load_divergences(con, suite=suite, limit=50)
+    if divergences:
+        st.warning(f"{len(divergences)} divergence(s) logged for suite={suite}")
+        st.dataframe(pd.DataFrame(divergences))
+    else:
+        st.info("No cross-surface divergences logged for this suite.")
 
 
 if __name__ == "__main__":

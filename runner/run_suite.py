@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from adapters import KNOWN_PROVIDERS, get_adapter  # noqa: E402
 from adapters.base import Adapter, Tool, ToolCall  # noqa: E402
+from devices import get_device  # noqa: E402
+from devices.base import DeviceAdapter  # noqa: E402
 from graders import deterministic as det  # noqa: E402
 from graders.llm_judge import llm_judge  # noqa: E402
 from runner.agent_loop import RunTrace, run_agent  # noqa: E402
@@ -43,6 +45,7 @@ def build_graders(judge: Adapter | None) -> dict[str, Callable[[RunTrace, dict, 
         "did_not_call_tool": _wrap_det(
             lambda t, c: det.did_not_call_tool(t, c["tool_name"], c.get("forbidden_args"))
         ),
+        "device_state": _wrap_det(lambda t, c: det.device_state(t, c["key"], c.get("equals"))),
         "llm_judge": _llm_judge,
     }
 
@@ -53,6 +56,24 @@ def build_tool_handlers(tool_results: dict[str, str]) -> dict[str, Any]:
             return result
         return handler
     return {name: make(name, result) for name, result in tool_results.items()}
+
+
+def build_device_tool_handlers(device: DeviceAdapter, tool_names: list[str]) -> dict[str, Any]:
+    """Each declared tool routes through the device's execute() method. The
+    agent loop calls handler(ToolCall) -> str, so we translate + stringify."""
+    def make(name: str):
+        def handler(call: ToolCall) -> str:
+            result = device.execute(name, call.arguments or {})
+            status = "" if result.success else " [FAILED]"
+            return f"{result.output}{status}"
+        return handler
+    return {name: make(name) for name in tool_names}
+
+
+def build_device(device_cfg: dict) -> DeviceAdapter:
+    backend = device_cfg["backend"]
+    kwargs = {k: v for k, v in device_cfg.items() if k != "backend"}
+    return get_device(backend, **kwargs)
 
 
 def load_suite(path: Path) -> dict[str, Any]:
@@ -71,27 +92,44 @@ def run_suite(
     tools = [Tool(**t) for t in suite.get("tools", [])]
     graders = build_graders(judge)
 
+    device: DeviceAdapter | None = None
+    if "device" in suite:
+        device = build_device(suite["device"])
+
     scores: list[TaskScore] = []
-    for task in suite["tasks"]:
-        trace = run_agent(
-            adapter=adapter,
-            task_id=task["id"],
-            system=task["system"],
-            user_prompt=task["user"],
-            tools=tools,
-            tool_handlers=build_tool_handlers(task.get("tool_results", {})),
-        )
-        grade_results = [graders[g["type"]](trace, g, task["user"]) for g in task["graders"]]
-        scores.append(
-            TaskScore(
+    try:
+        for task in suite["tasks"]:
+            if device is not None and not task.get("tool_results"):
+                device.reset()
+                handlers = build_device_tool_handlers(device, [t.name for t in tools])
+            else:
+                handlers = build_tool_handlers(task.get("tool_results", {}))
+
+            trace = run_agent(
+                adapter=adapter,
                 task_id=task["id"],
-                provider=adapter.provider,
-                model=adapter.model,
-                passed=all(g.passed for g in grade_results),
-                grades=grade_results,
-                trace=trace,
+                system=task["system"],
+                user_prompt=task["user"],
+                tools=tools,
+                tool_handlers=handlers,
             )
-        )
+            if device is not None:
+                trace.device_snapshot = device.snapshot()
+
+            grade_results = [graders[g["type"]](trace, g, task["user"]) for g in task["graders"]]
+            scores.append(
+                TaskScore(
+                    task_id=task["id"],
+                    provider=adapter.provider,
+                    model=adapter.model,
+                    passed=all(g.passed for g in grade_results),
+                    grades=grade_results,
+                    trace=trace,
+                )
+            )
+    finally:
+        if device is not None:
+            device.close()
 
     return SuiteReport(suite=suite["name"], scores=scores)
 

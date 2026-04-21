@@ -39,17 +39,20 @@ Exit code is non-zero if any task fails, so this script drops straight into CI a
 ## Layout
 
 ```
-adapters/   one file per provider, all conforming to the same contract
+adapters/   one file per LLM provider, all conforming to the same contract
+devices/    one file per device backend (mock/adb/Appium), same ABC pattern
 suites/     YAML task definitions (tools, prompts, expected graders)
-graders/    deterministic + LLM-as-judge scoring functions
-runner/     agent loop + suite runner + scorer
+graders/    deterministic + LLM-as-judge + cross-surface consistency
+runner/     agent loop + suite runner + scorer + cross-surface runner
+storage/    DuckDB run history + divergence log
+dashboard/  Streamlit drift + divergence UI
 tests/      pytest tests for the harness's own code
 .github/    CI workflow that runs the suite on every PR
 ```
 
 ---
 
-## Current scope (Modules 1 + 2 + 3 + 4 — complete)
+## Current scope (Modules 1 + 2 + 3 + 4 + 5 — complete)
 
 - [x] Provider-agnostic adapter layer (Claude, OpenAI, Gemini, Ollama — Ollama is local and free)
 - [x] YAML-defined task suites with mocked tool results
@@ -63,6 +66,10 @@ tests/      pytest tests for the harness's own code
 - [x] Drift detection — `find_regressions` SQL: PASS -> FAIL vs previous run
 - [x] Streamlit dashboard — pass-rate + token trends, regressions table
 - [x] Weekly drift GitHub Action — scheduled cron, auto-opens issue on regression
+- [x] **Device adapter layer — same ABC pattern extended to Android surfaces (mock / adb / Appium)**
+- [x] **Device-aware suite** (`suites/device_ui.yaml`) with `device_state` grader asserting physical side-effects
+- [x] **Cross-surface consistency runner** — run the same task against two surfaces (cloud vs. device) and flag divergent answers
+- [x] **Divergence log + dashboard panel** — "tasks where the phone disagreed with the PC"
 
 ### Running the RAG suite with an LLM judge
 
@@ -117,6 +124,73 @@ streamlit run dashboard/app.py -- --db demo.duckdb
 
 ---
 
+## Module 5 — Cross-device consistency
+
+The core QA problem for a cross-device AI assistant (e.g. Lenovo Qira, Apple
+Intelligence, Google's cross-surface assistants) is **answer consistency across
+surfaces**. A user asking "what's on my calendar?" on a phone and on a PC
+expects the same answer. When the on-device model and the cloud model drift
+apart, you get inconsistent behavior — and today nobody's testing for it.
+
+Module 5 adds three pieces:
+
+1. **Device adapter layer (`devices/`)** — a `DeviceAdapter` ABC with three backends:
+   - `mock_android` — fixture-driven, CI-friendly (no emulator required)
+   - `adb_android` — shells out to `adb` against a real device or emulator; raises `DeviceUnavailable` cleanly if adb isn't on PATH
+   - `appium_android` — UI automation via Appium WebDriver (optional dep, same lazy-import pattern as LLM SDKs)
+2. **Device-aware suite** (`suites/device_ui.yaml`) — tools like `launch_app`, `get_screen_text`, `list_packages` are routed through the device. A new grader `device_state` asserts on the physical result (e.g. `current_app == com.example.weather`), not just that the tool call happened.
+3. **Cross-surface runner** (`runner/run_cross_surface.py`) — runs the same suite against two surfaces (e.g. cloud Claude + on-device Ollama), scores token-set Jaccard agreement per task, flags divergences, and records them to DuckDB. The Streamlit dashboard gains a "Cross-surface divergences" panel.
+
+### Running the device suite (no phone needed)
+
+```bash
+python -m runner.run_suite \
+  --suite suites/device_ui.yaml \
+  --provider claude --model claude-sonnet-4-6
+```
+
+The suite declares `device: {backend: mock_android, fixture: devices/fixtures/basic_ui.json}`,
+so every tool call resolves through the fixture instead of an API or a device.
+
+### Running the device suite against a real emulator
+
+```bash
+# 1. start an emulator (one-time setup)
+sdkmanager "system-images;android-34;google_apis;x86_64"
+avdmanager create avd -n eval-hub -k "system-images;android-34;google_apis;x86_64"
+emulator -avd eval-hub -no-window &
+
+# 2. wait for it to be ready
+adb wait-for-device
+
+# 3. swap the backend — one-line change in the suite's `device:` block
+#    device: {backend: adb_android}
+python -m runner.run_suite --suite suites/device_ui.yaml --provider claude --model claude-sonnet-4-6
+```
+
+### Running a cross-surface consistency check
+
+```bash
+python -m runner.run_cross_surface \
+  --suite suites/tool_use.yaml \
+  --surface-a claude:claude-sonnet-4-6 \
+  --surface-b ollama:llama3.1 \
+  --threshold 0.5 \
+  --db runs.duckdb
+```
+
+Exit codes:
+- `0` — every task agrees above threshold
+- `1` — at least one task diverged (divergences logged to DuckDB when `--db` is passed)
+
+Open the dashboard to see the divergence panel:
+
+```bash
+streamlit run dashboard/app.py -- --db runs.duckdb
+```
+
+---
+
 ## Adding a new task
 
 Edit any file in `suites/`:
@@ -140,3 +214,13 @@ No code change required.
 1. Create `adapters/<name>.py` subclassing `Adapter`
 2. Register it in `adapters/__init__.py`
 3. That's it — existing suites run against it unchanged
+
+---
+
+## Adding a new device backend
+
+Same pattern, parallel module:
+
+1. Create `devices/<name>.py` subclassing `DeviceAdapter`
+2. Register it in `devices/__init__.py` (lazy-imported so missing SDKs only break their own backend)
+3. Swap the `device: {backend: <name>}` line in any suite — no harness change
