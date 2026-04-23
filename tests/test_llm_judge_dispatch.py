@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from adapters.base import Adapter, AgentResponse
-from runner.agent_loop import RunTrace
-from runner.run_suite import build_graders
+from agent_eval_hub.adapters.base import Adapter, AgentResponse
+from agent_eval_hub.runner.agent_loop import RunTrace
+from agent_eval_hub.runner.run_suite import build_graders
 
 
 class StubJudge(Adapter):
@@ -14,7 +14,7 @@ class StubJudge(Adapter):
         super().__init__(model="stub-judge")
         self._payload = payload
 
-    def complete(self, system, messages, tools=None, temperature=0.0):  # noqa: ARG002
+    def complete(self, system, messages, tools=None, temperature=0.0):
         return AgentResponse(text=self._payload, input_tokens=0, output_tokens=0)
 
 

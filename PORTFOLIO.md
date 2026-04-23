@@ -6,7 +6,11 @@ Private prep document for interviews and resume work. Not published anywhere ext
 
 ## One-sentence pitch
 
-> An open-source reliability harness for agentic LLM systems — evaluates tool use, safety, and RAG grounding across four providers (Claude, OpenAI, Gemini, Ollama), detects silent model drift via SQL-backed run history, and auto-opens GitHub issues when pinned models regress.
+> An open-source reliability harness for agentic LLM systems — evaluates tool use, safety, RAG grounding, and cross-device answer consistency across four providers (Claude, OpenAI, Gemini, Ollama) and three device backends (mock/adb/Appium Android), detects silent model drift via SQL-backed run history, and auto-opens GitHub issues when pinned models regress.
+
+## Cross-device pitch (Qira / Apple Intelligence / Google cross-surface)
+
+> The core QA problem for a cross-device AI assistant is answer consistency: does the phone give the same response as the PC? I built a cross-surface runner that executes the same task against two backends (e.g. cloud Claude + on-device Ollama), scores token-set agreement per task, and logs divergences to DuckDB. The device layer mirrors the LLM-adapter pattern: one ABC, three backends — a fixture-driven mock for CI, `adb` for real emulators, Appium for UI automation — so CI runs without a device but the same YAML suite validates a real phone locally.
 
 ---
 
@@ -82,6 +86,15 @@ flowchart LR
 
 **Likely follow-up:** *"What's the limitation?"*
 > "`actions/cache` evicts after 7 days of inactivity and has a 10 GB cap — fine for a portfolio demo, not production. In production I'd swap for S3 or hosted Postgres. I flagged this in the README as a known v1 limitation — I'd rather ship something that works with an honest caveat than overclaim."
+
+### Module 5 — Cross-device consistency
+> "The adapter pattern from Module 1 extends directly to device surfaces. I added a `DeviceAdapter` ABC with three backends: a fixture-driven mock for CI, an `adb` shell for real Android emulators, and an Appium adapter for UI automation — all lazy-imported so a missing SDK only breaks its own backend. A new `device:` block in the suite YAML routes tool calls through the device instead of mocked strings, and a `device_state` grader asserts on the snapshot after the run (e.g. `current_app == com.example.weather`) — not just that the tool was called. Finally, a cross-surface runner runs the same suite against two surfaces and flags tasks where their answers diverge via token-set Jaccard. That's the real QA signal for cross-device AI: 'does the phone agree with the PC?'"
+
+**Likely follow-up:** *"Why Jaccard, not embeddings?"*
+> "Jaccard is deterministic, zero-dependency, and good enough to detect real divergences on short tool-use answers. For subtler cases — 'same meaning, different wording' — I'd layer an LLM-as-judge with a consistency rubric on top, reusing the existing judge infrastructure. I deliberately started with the cheap signal and left a clear upgrade path rather than over-engineering day one."
+
+**Likely follow-up:** *"What if I don't have an emulator?"*
+> "Use `mock_android` — it loads a JSON fixture of canned action responses with simple `<args.key>` templating, so the agent's tool calls resolve deterministically. CI runs on mock. Locally, flip the suite's `device.backend` to `adb_android` and the same suite validates a real emulator. The mock adapter raises a clear `DeviceUnavailable` error if its fixture is malformed, and the adb adapter raises the same error if `adb` isn't on PATH — the harness never silently skips."
 
 ### Module 2 — RAG grounding + LLM-as-judge
 > "The harder-to-grade tasks use a judge model. The judge is a different, stronger model than the one under test — grading with the same model is the test-taker grading their own exam. Judge output is constrained to `{score, passed, reason}` JSON with a per-task rubric, and parsing is defensive — tolerates code fences and prose around the JSON."

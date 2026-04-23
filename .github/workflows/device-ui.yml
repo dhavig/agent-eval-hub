@@ -1,0 +1,44 @@
+name: device-ui
+
+# Runs the device_ui suite against a Dockerized Android emulator.
+# DISABLED by default (only runs on workflow_dispatch) — emulator jobs burn
+# minutes and require KVM-enabled runners. Kept wired up as the reference
+# setup: flip the `on:` block to `pull_request:` when you have a self-hosted
+# runner or macOS-large runner available.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  device-suite:
+    # GitHub's ubuntu-latest supports /dev/kvm via `google-github-actions/android-emulator`
+    # but large-resource workflows are usually self-hosted. Keep macos-latest as a fallback
+    # since it ships with an Android emulator accelerated by HVF.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e .[dev]
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Start emulator + run suite
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            adb wait-for-device
+            # Temporarily flip the suite to use the real adb backend.
+            sed -i.bak 's/backend: mock_android/backend: adb_android/' suites/device/device_ui.yaml
+            agent-eval \
+              --suite suites/device/device_ui.yaml \
+              --provider claude --model claude-sonnet-4-6

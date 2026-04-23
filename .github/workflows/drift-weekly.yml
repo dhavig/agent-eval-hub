@@ -15,7 +15,9 @@ jobs:
           - {name: claude, model: claude-sonnet-4-6, key: ANTHROPIC_API_KEY}
           - {name: openai, model: gpt-4o-mini, key: OPENAI_API_KEY}
           - {name: gemini, model: gemini-2.5-pro, key: GEMINI_API_KEY}
-        suite: [tool_use, red_team]
+        suite:
+          - {name: tool_use, path: agent/tool_use}
+          - {name: red_team, path: safety/red_team}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,17 +26,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
 
-      - run: pip install -r requirements.txt
+      - run: pip install -e .
 
       # Restore the historical run DB so we can compare against previous runs.
       - name: Restore run history
         uses: actions/cache@v4
         with:
           path: runs.duckdb
-          key: runs-db-${{ matrix.provider.name }}-${{ matrix.suite }}
+          key: runs-db-${{ matrix.provider.name }}-${{ matrix.suite.name }}
           restore-keys: |
-            runs-db-${{ matrix.provider.name }}-${{ matrix.suite }}
+            runs-db-${{ matrix.provider.name }}-${{ matrix.suite.name }}
 
       - name: Run eval against pinned model
         env:
@@ -42,8 +45,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python -m runner.run_suite \
-            --suite suites/${{ matrix.suite }}.yaml \
+          python -m agent_eval_hub.runner.run_suite \
+            --suite suites/${{ matrix.suite.path }}.yaml \
             --provider ${{ matrix.provider.name }} \
             --model ${{ matrix.provider.model }} \
             --db runs.duckdb \
@@ -52,7 +55,7 @@ jobs:
       - name: Upload run DB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: runs-db-${{ matrix.provider.name }}-${{ matrix.suite }}
+          name: runs-db-${{ matrix.provider.name }}-${{ matrix.suite.name }}
           path: runs.duckdb
           retention-days: 90
 
@@ -64,7 +67,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Drift detected: ${{ matrix.suite }} on ${{ matrix.provider.name }}`,
+              title: `Drift detected: ${{ matrix.suite.name }} on ${{ matrix.provider.name }}`,
               body: `Weekly drift check found regressions. See run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               labels: ['drift', 'ai-safety']
             })

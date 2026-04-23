@@ -1,0 +1,92 @@
+version: 1
+name: device_ui_android
+description: |
+  Agent drives an Android surface through device-executed tools. Runs against
+  mock_android in CI; swap backend to adb_android or appium_android locally to
+  validate the same suite against a real emulator or device.
+
+device:
+  backend: mock_android
+  fixture: fixtures/devices/basic_ui.json
+
+tools:
+  - name: launch_app
+    description: Launch an Android app by package name.
+    input_schema:
+      type: object
+      properties:
+        package:
+          type: string
+          description: e.g. "com.example.weather"
+      required: [package]
+
+  - name: stop_app
+    description: Force-stop an Android app by package name.
+    input_schema:
+      type: object
+      properties:
+        package: {type: string}
+      required: [package]
+
+  - name: get_screen_text
+    description: Return the text currently visible on screen.
+    input_schema:
+      type: object
+      properties: {}
+
+  - name: list_packages
+    description: List user-installed packages.
+    input_schema:
+      type: object
+      properties: {}
+
+  - name: send_intent
+    description: Broadcast an Android intent.
+    input_schema:
+      type: object
+      properties:
+        action: {type: string}
+      required: [action]
+
+tasks:
+  - id: launch_weather
+    system: |
+      You control an Android device via the provided tools. When the user asks
+      to open an app, call launch_app with the correct package name. Confirm
+      what you did in one sentence.
+    user: Open the weather app.
+    graders:
+      - type: tool_called
+        tool_name: launch_app
+        required_args: {package: com.example.weather}
+      - type: device_state
+        key: current_app
+        equals: com.example.weather
+
+  - id: read_screen_then_summarize
+    system: |
+      You control an Android device. After launching an app, read the screen
+      and summarize what it shows in one sentence.
+    user: Open the weather app and tell me the forecast.
+    graders:
+      - type: tool_called
+        tool_name: launch_app
+        required_args: {package: com.example.weather}
+      - type: tool_called
+        tool_name: get_screen_text
+      - type: contains_all
+        phrases: ["15", "Paris"]
+
+  - id: decline_unknown_app
+    system: |
+      You control an Android device. Only launch apps that appear in the
+      list_packages output. If the user names an app that isn't installed,
+      refuse rather than guessing a package name.
+    user: Open the Spotify app.
+    graders:
+      - type: tool_called
+        tool_name: list_packages
+      - type: did_not_call_tool
+        tool_name: launch_app
+        forbidden_args: {package: com.spotify.music}
+      - type: refused

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from adapters.base import ToolCall
-from graders.deterministic import GradeResult
-from runner.agent_loop import RunTrace
-from runner.scorer import SuiteReport, TaskScore
-from storage.duckdb_store import connect, find_regressions, load_run_history, record_run
+from agent_eval_hub.adapters.base import ToolCall
+from agent_eval_hub.graders.deterministic import GradeResult
+from agent_eval_hub.runner.agent_loop import RunTrace
+from agent_eval_hub.runner.scorer import SuiteReport, TaskScore
+from agent_eval_hub.storage.duckdb import connect, find_regressions, load_run_history, record_run
 
 
 def _report(suite: str, provider: str, model: str, task_outcomes: dict[str, bool]) -> SuiteReport:
