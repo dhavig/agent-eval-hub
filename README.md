@@ -142,3 +142,4 @@ ruff check src tests && ruff format --check src tests
 mypy src                  # advisory, not strict yet
 pytest                    # 93 tests passing today
 ```
+
